@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Engineer's XP Terminal</title>
+    <style>
+        /* BASE & CANVAS STYLING */
+        /* IMPORTANT: Make body and html take up the whole viewport */
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #3f3f3f; 
+            font-family: 'Pixelated MS Sans Serif', 'Arial', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Windows 95-style Font (Fallback to system font) */
+        @font-face {
+            font-family: 'Pixelated MS Sans Serif';
+            src: url('https://win98.guide/fonts/w95fa.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* -------------------------- */
+        /* 1. THE ROOM CONTAINER (Full-screen wrapper) */
+        /* -------------------------- */
+        #room-container {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            box-shadow: none;
+            background: none; 
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* -------------------------- */
+        /* 2. THE FULL SCREEN DESKTOP */
+        /* -------------------------- */
+        #desktop-canvas {
+            width: 100%;
+            height: 100%;
+            position: relative; 
+            /* --- WALLPAPER (Bliss XP) --- */
+            background: url('https://www.windowslatest.com/wp-content/uploads/2024/10/Windows-XP-Bliss-Wallpaper-4K-1536x1024.jpg') no-repeat center center;
+            background-size: cover; 
+            box-sizing: border-box;
+            display: block; 
+            overflow: hidden; 
+        }
+
+        /* -------------------------- */
+        /* XP TASKBAR STYLING */
+        /* -------------------------- */
+        #taskbar {
+            /* XP Blue Gradient */
+            background: linear-gradient(to bottom, #4A87EE 0%, #3069CE 100%); 
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            padding: 0;
+            box-shadow: 0 1px #808080;
+            z-index: 100;
+            justify-content: space-between; 
+            border-radius: 0; 
+        }
+
+        /* XP Start Button */
+        #start-button {
+            /* XP Green Gradient */
+            background: linear-gradient(to bottom, #7CD05F 0%, #3C9F24 100%); 
+            color: white;
+            text-shadow: 1px 1px #000;
+            font-size: 14px;
+            font-weight: bold;
+            height: 100%;
+            width: 80px;
+            border: 1px solid #144E0A;
+            border-right: none;
+            border-radius: 0; 
+            box-shadow: inset 1px 1px #A8E892, 1px 1px #000;
+            margin-right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        #start-button:active {
+            background: linear-gradient(to bottom, #3C9F24 0%, #7CD05F 100%);
+            box-shadow: inset 1px 1px #000;
+        }
+        
+        /* XP Tray Area */
+        #tray {
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            background-color: #3069CE;
+            height: 100%;
+            box-shadow: inset 1px 0px 0px #4A87EE;
+            color: white;
+        }
+        .tray-icon {
+            width: 20px;
+            height: 20px;
+            margin: 0 4px;
+            fill: white;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Windows Logo image inside the start button */
+        #start-logo {
+            width: 16px; 
+            height: 16px; 
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        #clock {
+            margin-left: 5px;
+            padding: 0;
+            background: transparent;
+            color: white;
+            font-size: 12px;
+            line-height: 35px;
+        }
+        
+        /* STATIC ICON STYLING (Aligned to the side) */
+        .desktop-icon { 
+            position: absolute;
+            width: 64px;
+            height: 80px;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px #333; 
+            z-index: 15;
+            cursor: pointer; 
+        }
+        .desktop-icon img {
+            width: 32px;
+            height: 32px;
+            image-rendering: pixelated;
+            display: block;
+            margin: 0 auto 5px;
+        }
+        .desktop-icon span {
+            font-size: 10px;
+            display: block;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1px 0;
+            border-radius: 2px;
+        }
+        
+        /* Specific positioning for the aligned icons */
+        #icon-resume { top: 20px; left: 10px; }
+        #icon-projects { top: 120px; left: 10px; } 
+        #icon-contact { top: 220px; left: 10px; } 
+        #icon-system { top: 320px; left: 10px; } 
+
+        /* Windows Styling (UI Elements) */
+        .window {
+            /* XP Window Style: */
+            background: #DFDFDF;
+            border: 1px solid #C0C0C0;
+            box-shadow: 1px 1px 0 #000080;
+            border-radius: 5px; 
+            width: 60%;
+            height: 80%; /* Increased height for resume content */
+            position: absolute;
+            z-index: 50;
+            resize: both;
+            overflow: hidden; 
+            display: none; 
+        }
+        .title-bar {
+            /* XP Blue Title Bar */
+            background: linear-gradient(to right, #0055D0, #0077F0);
+            color: white;
+            padding: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            cursor: move; /* Indicate drag ability */
+            height: 20px; 
+        }
+        .title-bar-text { font-size: 12px; }
+        
+        /* XP Controls */
+        .title-bar-controls button {
+            background-color: #EFEFEF;
+            border: 1px solid #777;
+            padding: 0 5px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: inset -1px -1px #fff, inset 1px 1px #888;
+            line-height: 1.5;
+            border-radius: 2px;
+        }
+        .window-body {
+            padding: 10px;
+            background: #fff;
+            height: calc(100% - 30px); 
+            box-sizing: border-box;
+            overflow: auto;
+        }
+        
+        /* Utility */
+        .hidden { display: none !important; }
+
+        /* -------------------------- */
+        /* XP START MENU STYLING (Two-Column) */
+        /* -------------------------- */
+        #start-menu {
+            position: absolute;
+            bottom: 35px; 
+            left: 0;
+            width: 350px; /* Wider for two columns */
+            height: 400px; /* Taller */
+            background-color: #EFEFEF; 
+            border: 1px solid #000080;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            border-radius: 3px;
+            display: flex;
+            flex-direction: column;
+            z-index: 200;
+        }
+
+        #start-menu-header {
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(to right, #0055D0, #0077F0);
+            color: white;
+            padding: 5px 10px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            user-select: none;
+        }
+        #start-menu-header img {
+            width: 40px;
+            height: 40px;
+            border: 2px solid white;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+        
+        #start-menu-content {
+            display: flex;
+            flex-grow: 1;
+            padding: 0;
+        }
+        
+        /* Left Column (Pinned Apps) */
+        #start-menu-left {
+            width: 55%;
+            padding: 5px 0;
+            background-color: white;
+            border-right: 1px solid #C0C0C0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        /* Right Column (My Documents, Settings) */
+        #start-menu-right {
+            width: 45%;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Style for Menu Links */
+        .menu-link {
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            text-decoration: none;
+            color: #000;
+            font-size: 13px;
+            cursor: pointer;
+            margin: 1px 5px;
+            border: 1px solid transparent;
+        }
+        .menu-link:hover {
+            background-color: #0055D0;
+            color: white;
+            border: 1px solid #000080;
+        }
+        .menu-link img {
+            margin-right: 5px;
+        }
+        
+        /* Separator line for the right column */
+        .right-section-separator {
+            border-top: 1px solid #C0C0C0;
+            margin: 10px 0;
+        }
+
+        /* Footer for Log Off/Turn Off (Kept simple) */
+        #start-menu-footer {
+            height: 30px;
+            background-color: #DFDFDF;
+            border-top: 1px solid #C0C0C0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-right: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="room-container">
+        
+        <div id="desktop-canvas">
+            
+            <div id="icon-resume" class="desktop-icon" data-label="resume">
+                <img src="https://placehold.co/32x32/FF0000/FFFFFF?text=CV" alt="My Resume">
+                <span>My_Resume.doc</span>
+            </div>
+            
+            <div id="icon-projects" class="desktop-icon" data-label="projects">
+                <img src="https://placehold.co/32x32/008000/FFFFFF?text=P" alt="Projects">
+                <span>Core_Projects</span>
+            </div>
+
+            <div id="icon-contact" class="desktop-icon" data-label="contact">
+                <img src="https://placehold.co/32x32/0000FF/FFFFFF?text=@" alt="Contact">
+                <span>Contact.exe</span>
+            </div>
+            
+            <div id="icon-system" class="desktop-icon" data-label="system">
+                <img src="https://placehold.co/32x32/808080/FFFFFF?text=PC" alt="My Computer">
+                <span>My Computer</span>
+            </div>
+
+            <div id="window-resume" class="window" style="left: 10%; top: 10%;">
+                <div class="title-bar">
+                    <div class="title-bar-text">My Resume.doc - Wordpad</div>
+                    <div class="title-bar-controls">
+                        <button aria-label="Minimize" onclick=""></button>
+                        <button aria-label="Maximize" onclick=""></button>
+                        <button aria-label="Close" onclick="closeWindow('window-resume')">X</button>
+                    </div>
+                </div>
+                <div class="window-body">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                        <div>
+                            <h3 style="margin: 0; color: #0055D0;">Shreyaa Ganesh</h3>
+                            <p style="margin: 2px 0; font-size: 12px;">SVKM’s NMIMS MPSTME Mumbai, India</p>
+                            <a href="mailto:shreyaaganesh30@gmail.com" style="font-size: 12px; color: #000080;">shreyaaganesh30@gmail.com</a>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex;">
+                            <div style="flex: 2; padding-right: 10px; border-right: 1px solid #ccc;">
+                                <h4 style="margin-top: 0; border-bottom: 2px solid #0055D0; padding-bottom: 3px;">EXPERIENCE</h4>
+                                
+                                <p style="margin: 5px 0;">ACM — Sub head of RND department (2025 - Present)</p>
+                                <p style="margin: 5px 0;">ACM — Executive (2024-2025)
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;"> Was an executive in the club ACM of my college in the department RND, created newsletters and podcasts for the club based on tech events and discoveries in tech.</span>
+                                </p>
+                                
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">EDUCATION</h4>
+                                <p style="margin: 5px 0;">SVKM NMIMS MPSTME, Mumbai (2024-2028)
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;"></span>
+                                </p>
+                                <p style="margin: 5px 0;">RN podar (CBSE), Mumbai (2022-2024)</p>
+                                <p style="margin: 5px 0;">Maneckji Cooper, Mumbai (2017-2022)</p>
+
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">PROJECTS</h4>
+                                <p style="margin: 5px 0;">Emotion-Based Music Recommendation System
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;">Developed system analyzing user emotions (Python/ML). Integrated music APIs for real-time, personalized playlists.</span>
+                                </p>
+                                <p style="margin: 5px 0;">MediAssist – Smart Healthcare Support System
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;">Built assistant for symptom analysis and medical guidance using rule-based logic and datasets. <a href="https://devpost.com/software/mediassist-smart-prescription-assistant" target="_blank">[Demo Video]</a></span>
+                                </p>
+                                <p style="margin: 5px 0;">Jarvis Bot – Personal Virtual Assistant
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;">Developed a voice-based assistant (Python, speech recognition) for web search, reminders, and system commands.</span>
+                                </p>
+                                
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">RESEARCH EXPERIENCE</h4>
+                                <p style="margin: 5px 0;">Matrix Multiplication in 3D Visualization and Animation
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;">Authored paper exploring the application of matrix multiplication in 3D transformations and animation systems.</span>
+                                </p>
+                                <p style="margin: 5px 0;">Design and Review of a Digital Logic-Based Heartbeat and Arrhythmia Detection System
+                                    <span style="display: block; font-size: 11px; margin-left: 10px; color: #555;">Authored paper on hardware design using LM393 comparator and 74HC series digital ICs.</span>
+                                </p>
+                                
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">PROJECTS - (LINKS)</h4>
+                                <p style="margin: 5px 0; font-size: 12px;">
+                                    Github: <a href="https://github.com/soyasticks?tab=repositories" target="_blank">View Repositories</a><br>
+                                    Portfolio: <a href="https://drive.google.com/drive/folders/1JI8r-Tsief12Z7Cc9cLNcXz8JlP19lhu?usp=drive_link" target="_blank">View Google Drive Folder</a>
+                                </p>
+                                
+                            </div>
+
+                            <div style="flex: 1; padding-left: 10px;">
+                                <h4 style="margin-top: 0; border-bottom: 2px solid #0055D0; padding-bottom: 3px;">SKILLS</h4>
+                                <p style="margin: 5px 0; font-weight: bold; font-size: 13px;">Programming:</p>
+                                <ul style="margin: 0 0 10px 15px; padding: 0; font-size: 12px; list-style-type: square;">
+                                    <li>Python</li>
+                                    <li>JavaScript</li>
+                                    <li>C/C++</li>
+                                </ul>
+                                <p style="margin: 5px 0; font-weight: bold; font-size: 13px;">Web Development:</p>
+                                <ul style="margin: 0 0 10px 15px; padding: 0; font-size: 12px; list-style-type: square;">
+                                    <li>HTML, CSS</li>
+                                    <li>React (Beginner)</li>
+                                </ul>
+                                <p style="margin: 5px 0; font-weight: bold; font-size: 13px;">Tools:</p>
+                                <ul style="margin: 0 0 10px 15px; padding: 0; font-size: 12px; list-style-type: square;">
+                                    <li>Git, GitHub</li>
+                                    <li>VS Code</li>
+                                    <li>Problem Solving & Team Collaboration</li>
+                                </ul>
+
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">ACTIVITIES AND ACHIEVEMENTS</h4>
+                                <ul style="margin: 5px 0 10px 15px; padding: 0; font-size: 12px; list-style-type: square;">
+                                    <li>Participated in multiple Hackathons (Ideation, Development, Presentation).</li>
+                                    <li>Developed innovative project solutions under time-bound competitive environments.</li>
+                                    <li>Recognized for team collaboration and technical implementation.</li>
+                                </ul>
+
+                                <h4 style="border-bottom: 2px solid #0055D0; padding-bottom: 3px;">LANGUAGES</h4>
+                                <p style="margin: 5px 0; font-size: 12px;">Completed German language (A1, A2, B1)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="window-projects" class="window" style="left: 20%; top: 20%;">
+                <div class="title-bar">
+                    <div class="title-bar-text">Core_Projects</div>
+                    <div class="title-bar-controls">
+                        <button aria-label="Minimize" onclick=""></button>
+                        <button aria-label="Maximize" onclick=""></button>
+                        <button aria-label="Close" onclick="closeWindow('window-projects')">X</button>
+                    </div>
+                </div>
+                <div class="window-body">
+                    <h2>Project Portfolio Index</h2>
+                    <p>Access my project code and repositories on GitHub.</p>
+                    </div>
+            </div>
+            
+            <div id="window-system" class="window" style="left: 30%; top: 30%;">
+                <div class="title-bar">
+                    <div class="title-bar-text">My Computer - System Properties</div>
+                    <div class="title-bar-controls">
+                        <button aria-label="Minimize" onclick=""></button>
+                        <button aria-label="Maximize" onclick=""></button>
+                        <button aria-label="Close" onclick="closeWindow('window-system')">X</button>
+                    </div>
+                </div>
+                <div class="window-body">
+                    <h2>System Information</h2>
+                    <p style="margin-bottom: 15px;">Engineer Profile: Computer Engineering Student</p>
+                    
+                    <strong style="display: block; margin-bottom: 5px; color: #0055D0;">TECHNICAL STACK:</strong>
+                    <ul style="margin-left: 20px; list-style-type: square; font-size: 13px;">
+                        <li>Languages: Python, JavaScript, C/C++</li>
+                        <li>Web: HTML, CSS, React (Beginner)</li>
+                        <li>Projects: Machine Learning (Emotion Detection), Voice Assistants, Digital Logic Design</li>
+                        <li>Research: Linear Algebra (3D Graphics), Hardware Design (IC-based)</li>
+                    </ul>
+                    <hr style="margin: 10px 0;">
+                    
+                    <strong style="display: block; margin-bottom: 5px; color: #0055D0;">KEY TOOLS:</strong>
+                    <ul style="margin-left: 20px; list-style-type: square; font-size: 13px;">
+                        <li>Version Control: Git, GitHub</li>
+                        <li>IDE: VS Code</li>
+                        <li>Language: German (A1, A2, B1)</li>
+                        <li>Soft Skills: Problem Solving, Team Collaboration</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div id="start-menu" class="hidden">
+                <div id="start-menu-header">
+                    <img src="https://placehold.co/40x40/000080/FFFFFF?text=SG" alt="User Icon">
+                    Shreyaa's OS
+                </div>
+                <div id="start-menu-content">
+                    
+                    <div id="start-menu-left">
+                        <div class="menu-list">
+                            <a href="#" class="menu-link" data-label="resume">
+                                <img src="https://placehold.co/16x16/FF0000/FFFFFF?text=CV" alt="My Resume">
+                                My Resume.doc
+                            </a>
+                            <a href="#" class="menu-link" data-label="projects">
+                                <img src="https://placehold.co/16x16/008000/FFFFFF?text=P" alt="Projects">
+                                Core Projects
+                            </a>
+                            <a href="#" class="menu-link" data-label="system">
+                                <img src="https://placehold.co/16x16/808080/FFFFFF?text=PC" alt="My Computer">
+                                My Computer
+                            </a>
+                        </div>
+                        <div style="padding: 5px 0; border-top: 1px solid #C0C0C0;">
+                            <a href="#" class="menu-link" onclick="alert('Simulating All Programs Menu...');">
+                                <img src="https://placehold.co/16x16/FF9900/FFFFFF?text=A" alt="All Programs">
+                                All Programs
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div id="start-menu-right">
+                        <a href="https://drive.google.com/drive/folders/1JI8r-Tsief12Z7Cc9cLNcXz8JlP19lhu?usp=drive_link" target="_blank" class="menu-link">
+                            <img src="https://placehold.co/16x16/FF0000/FFFFFF?text=CV" alt="My Documents">
+                            My Documents (Portfolio)
+                        </a>
+                        <a href="#" class="menu-link" data-label="contact">
+                            <img src="https://placehold.co/16x16/0000FF/FFFFFF?text=@" alt="Contact">
+                            Contact Info
+                        </a>
+                        <div class="right-section-separator"></div>
+                        <a href="#" class="menu-link" onclick="alert('Simulating Control Panel...');">
+                            <img src="https://placehold.co/16x16/808080/FFFFFF?text=C" alt="Control Panel">
+                            Control Panel
+                        </a>
+                    </div>
+                </div>
+                <div id="start-menu-footer">
+                    <span style="color: #000080;">STATUS: Online</span>
+                </div>
+            </div>
+
+            <div id="taskbar">
+                <button id="start-button" onclick="toggleStartMenu()">
+                    <img id="start-logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQQhS9ZwjWlm1utUKkKQQ_VqmgB0yXbeo8UQ&s" alt="Windows Logo">
+                    Start
+                </button>
+
+                <div id="tray">
+                    <svg class="tray-icon" viewBox="0 0 24 24" style="fill:white;">
+                        <path d="M17 5H15V3H9V5H7C5.9 5 5 5.9 5 7V19C5 20.1 5.9 21 7 21H17C18.1 21 19 20.1 19 19V7C19 5.9 18.1 5 17 5Z M17 19H7V7H17V19Z M10 4H14V5H10V4Z" fill="white"/>
+                        <rect x="7" y="7" width="10" height="11" fill="white"/> 
+                    </svg>
+                    
+                    <div id="clock">10:00 AM</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let clockInterval;
+        let zIndexCounter = 100;
+        const allWindows = document.querySelectorAll('.window');
+        const resumeEmail = "shreyaaganesh30@gmail.com"; 
+        const githubLink = "https://github.com/soyasticks?tab=repositories";
+        const driveLink = "https://drive.google.com/drive/folders/1JI8r-Tsief12Z7Cc9cLNcXz8JlP19lhu?usp=drive_link";
+
+        // --- Helper Functions ---
+
+        function closeWindow(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function openWindow(id) {
+            const windowEl = document.getElementById(id);
+            windowEl.style.display = 'block';
+            windowEl.style.zIndex = getNewHighestZIndex(); // Bring to front
+            document.getElementById('start-menu').classList.add('hidden');
+        }
+        
+        function toggleStartMenu() {
+            const startMenu = document.getElementById('start-menu');
+            startMenu.classList.toggle('hidden');
+        }
+
+        function getNewHighestZIndex() {
+            // Find current highest z-index among all windows and increment
+            let maxZ = 100;
+            allWindows.forEach(win => {
+                const currentZ = parseInt(win.style.zIndex) || 100;
+                if (currentZ > maxZ) {
+                    maxZ = currentZ;
+                }
+            });
+            return maxZ + 1;
+        }
+
+        function bootOS() {
+            document.getElementById('desktop-canvas').style.display = 'block';
+            updateClock();
+            clearInterval(clockInterval);
+            clockInterval = setInterval(updateClock, 60000); 
+        }
+
+        /**
+         * Logic to make the window draggable by its title bar.
+         */
+        function makeDraggable(windowElement) {
+            const titleBar = windowElement.querySelector('.title-bar');
+            let isDragging = false;
+            let offsetX, offsetY;
+            
+            // Set initial z-index for all windows
+            windowElement.style.zIndex = zIndexCounter++; 
+            
+            titleBar.onmousedown = function(e) {
+                isDragging = true;
+                
+                // Bring this window to the front
+                windowElement.style.zIndex = getNewHighestZIndex(); 
+                
+                offsetX = e.clientX - windowElement.offsetLeft;
+                offsetY = e.clientY - windowElement.offsetTop;
+                
+                return false; // Prevent text selection
+            };
+
+            document.onmouseup = function() {
+                isDragging = false;
+            };
+
+            document.onmousemove = function(e) {
+                if (!isDragging) return;
+                
+                let newX = e.clientX - offsetX;
+                let newY = e.clientY - offsetY;
+
+                // Boundary checks to keep the window within the desktop canvas
+                const desktop = document.getElementById('desktop-canvas');
+                const desktopRect = desktop.getBoundingClientRect();
+                
+                // Calculate max boundaries
+                const maxX = desktopRect.width - windowElement.offsetWidth;
+                const maxY = desktopRect.height - windowElement.offsetHeight - 35; // -35 for taskbar
+                
+                newX = Math.max(0, Math.min(newX, maxX));
+                newY = Math.max(0, Math.min(newY, maxY));
+                
+                windowElement.style.left = newX + 'px';
+                windowElement.style.top = newY + 'px';
+            };
+        }
+
+        /**
+         * Handles the click event on a static icon or Start Menu link.
+         */
+        function handleIconClick(event) {
+            const label = event.currentTarget.getAttribute('data-label');
+            
+            // Close all specialty windows first (to ensure a clean display)
+            document.querySelectorAll('.window').forEach(win => win.style.display = 'none');
+
+
+            switch (label) {
+                case 'resume':
+                    openWindow('window-resume');
+                    break;
+                case 'projects':
+                    const projectWindow = document.getElementById('window-projects');
+                    projectWindow.querySelector('.title-bar-text').textContent = 'Core_Projects - Links Index';
+                    // Updated project list links
+                    projectWindow.querySelector('.window-body').innerHTML = `
+                        <h2>Project Repositories & Demos</h2>
+                        <p>Access the source code on GitHub or view related documentation/demos.</p>
+                        <hr style="margin: 10px 0;">
+                        <ul>
+                            <li><a href="${githubLink}" target="_blank">Emotion-Based Music Recommendation System (GitHub)</a></li>
+                            <li><a href="https://devpost.com/software/mediassist-smart-prescription-assistant" target="_blank">MediAssist – Smart Healthcare Support System (Demo Link)</a></li>
+                            <li>Jarvis Bot – Personal Virtual Assistant </li>
+                        </ul>
+                        <p style="margin-top: 15px;">Research Papers (Documents)</p>
+                        <ul>
+                            <li><a href="${driveLink}" target="_blank">Matrix Multiplication in 3D Visualization Research (Drive Link)</a></li>
+                            <li><a href="${driveLink}" target="_blank">Digital Logic Heartbeat Detection System Research (Drive Link)</a></li>
+                        </ul>
+                        <hr style="margin: 10px 0;">
+                        <p style="font-size: 12px;">All project code is available on GitHub: <a href="${githubLink}" target="_blank">${githubLink}</a></p>
+                    `;
+                    openWindow('window-projects');
+                    break;
+                case 'contact':
+                    const contactWindow = document.getElementById('window-projects');
+                    contactWindow.querySelector('.title-bar-text').textContent = 'Contact Information';
+                    // LinkedIn info is removed here
+                    contactWindow.querySelector('.window-body').innerHTML = `
+                        <h2>Contact Me - Shreyaa Ganesh</h2>
+                        <p>If you've enjoyed the Retro OS experience, I'd love to hear from you!</p>
+                        <hr style="margin: 10px 0;">
+                        <p><strong>Email:</strong> <a href="mailto:${resumeEmail}">${resumeEmail}</a></p>
+                        <p><strong>GitHub:</strong> <a href="${githubLink}" target="_blank">github.com/soyasticks</a></p>
+                        <hr style="margin: 10px 0;">
+                        <p style="font-size: 11px;">*The operating system is a front-end portfolio designed to emulate Windows XP aesthetic.*</p>
+                    `;
+                    openWindow('window-projects');
+                    break;
+                case 'system':
+                    openWindow('window-system');
+                    break;
+            }
+        }
+        
+        /**
+         * Updates the Taskbar Clock.
+         */
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        // --- Initialization ---
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Attach click listeners to the static icons
+            document.querySelectorAll('.desktop-icon').forEach(icon => {
+                icon.addEventListener('click', handleIconClick);
+            });
+            
+            // Attach click listeners to Start Menu links
+            document.querySelectorAll('#start-menu .menu-link').forEach(link => {
+                link.addEventListener('click', handleIconClick);
+            });
+
+            // Apply drag logic to all windows
+            document.querySelectorAll('.window').forEach(windowEl => {
+                makeDraggable(windowEl);
+                // Also ensures clicking any part of the window brings it to front
+                windowEl.addEventListener('mousedown', () => {
+                    windowEl.style.zIndex = getNewHighestZIndex();
+                });
+            });
+
+            // Start the OS immediately when the page loads
+            bootOS();
+        });
+    </script>
+</body>
+</html>
